@@ -40,13 +40,13 @@ set(CORE_SRCS
 set(LIBRARY_SRCS
   libraries/ArduinoOTA/src/ArduinoOTA.cpp
   libraries/AsyncUDP/src/AsyncUDP.cpp
-  libraries/BluetoothSerial/src/BluetoothSerial.cpp
+  # libraries/BluetoothSerial/src/BluetoothSerial.cpp
   libraries/DNSServer/src/DNSServer.cpp
   libraries/EEPROM/src/EEPROM.cpp
   libraries/ESPmDNS/src/ESPmDNS.cpp
   libraries/FFat/src/FFat.cpp
-  libraries/FS/src/FS.cpp
-  libraries/FS/src/vfs_api.cpp
+  # libraries/FS/src/FS.cpp
+  # libraries/FS/src/vfs_api.cpp
   libraries/HTTPClient/src/HTTPClient.cpp
   libraries/HTTPUpdate/src/HTTPUpdate.cpp
   libraries/NetBIOS/src/NetBIOS.cpp
@@ -56,7 +56,7 @@ set(LIBRARY_SRCS
   libraries/SD/src/sd_diskio.cpp
   libraries/SD/src/sd_diskio_crc.c
   libraries/SimpleBLE/src/SimpleBLE.cpp
-  libraries/SPIFFS/src/SPIFFS.cpp
+  # libraries/SPIFFS/src/SPIFFS.cpp
   libraries/SPI/src/SPI.cpp
   libraries/Ticker/src/Ticker.cpp
   libraries/Update/src/Updater.cpp
@@ -179,13 +179,13 @@ set(COMPONENT_ADD_INCLUDEDIRS
   libraries/AsyncUDP/src
   libraries/AzureIoT/src
   libraries/BLE/src
-  libraries/BluetoothSerial/src
+  # libraries/BluetoothSerial/src
   libraries/DNSServer/src
   libraries/EEPROM/src
   libraries/ESP32/src
   libraries/ESPmDNS/src
   libraries/FFat/src
-  libraries/FS/src
+  # libraries/FS/src
   libraries/HTTPClient/src
   libraries/HTTPUpdate/src
   libraries/NetBIOS/src
@@ -193,7 +193,7 @@ set(COMPONENT_ADD_INCLUDEDIRS
   libraries/SD_MMC/src
   libraries/SD/src
   libraries/SimpleBLE/src
-  libraries/SPIFFS/src
+  # libraries/SPIFFS/src
   libraries/SPI/src
   libraries/Ticker/src
   libraries/Update/src
@@ -205,8 +205,8 @@ set(COMPONENT_ADD_INCLUDEDIRS
 
 set(COMPONENT_PRIV_INCLUDEDIRS cores/esp32/libb64)
 
-set(COMPONENT_REQUIRES spi_flash mbedtls mdns ethernet)
-set(COMPONENT_PRIV_REQUIRES fatfs nvs_flash app_update spiffs bootloader_support openssl bt)
+set(COMPONENT_REQUIRES spi_flash mbedtls mdns esp_eth)
+set(COMPONENT_PRIV_REQUIRES fatfs nvs_flash app_update bootloader_support openssl bt)
 
 register_component()
 

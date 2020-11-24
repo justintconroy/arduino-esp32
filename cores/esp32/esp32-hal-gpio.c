@@ -15,10 +15,10 @@
 #include "esp32-hal-gpio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "rom/ets_sys.h"
+#include "esp32/rom/ets_sys.h"
 #include "esp_attr.h"
 #include "esp_intr.h"
-#include "rom/gpio.h"
+#include "esp32/rom/gpio.h"
 #include "soc/gpio_reg.h"
 #include "soc/io_mux_reg.h"
 #include "soc/gpio_struct.h"
@@ -26,7 +26,7 @@
 
 const int8_t esp32_adc2gpio[20] = {36, 37, 38, 39, 32, 33, 34, 35, -1, -1, 4, 0, 2, 15, 13, 12, 14, 27, 25, 26};
 
-const DRAM_ATTR esp32_gpioMux_t esp32_gpioMux[GPIO_PIN_COUNT]={
+const DRAM_ATTR esp32_gpioMux_t esp32_gpioMux[GPIO_PIN_COUNT] = {
     {0x44, 11, 11, 1},
     {0x88, -1, -1, -1},
     {0x40, 12, 12, 2},
@@ -66,42 +66,45 @@ const DRAM_ATTR esp32_gpioMux_t esp32_gpioMux[GPIO_PIN_COUNT]={
     {0x04, 0, 0, -1},
     {0x08, 1, 1, -1},
     {0x0c, 2, 2, -1},
-    {0x10, 3, 3, -1}
-};
+    {0x10, 3, 3, -1}};
 
 typedef void (*voidFuncPtr)(void);
-typedef void (*voidFuncPtrArg)(void*);
-typedef struct {
+typedef void (*voidFuncPtrArg)(void *);
+typedef struct
+{
     voidFuncPtr fn;
-    void* arg;
+    void *arg;
     bool functional;
 } InterruptHandle_t;
-static InterruptHandle_t __pinInterruptHandlers[GPIO_PIN_COUNT] = {0,};
+static InterruptHandle_t __pinInterruptHandlers[GPIO_PIN_COUNT] = {
+    0,
+};
 
 #include "driver/rtc_io.h"
 
 extern void IRAM_ATTR __pinMode(uint8_t pin, uint8_t mode)
 {
 
-    if(!digitalPinIsValid(pin)) {
+    if (!digitalPinIsValid(pin))
+    {
         return;
     }
 
     uint32_t rtc_reg = rtc_gpio_desc[pin].reg;
-    if(mode == ANALOG) {
-        if(!rtc_reg) {
-            return;//not rtc pin
+    if (mode == ANALOG)
+    {
+        if (!rtc_reg)
+        {
+            return; //not rtc pin
         }
         //lock rtc
         uint32_t reg_val = ESP_REG(rtc_reg);
-        if(reg_val & rtc_gpio_desc[pin].mux){
-            return;//already in adc mode
+        if (reg_val & rtc_gpio_desc[pin].mux)
+        {
+            return; //already in adc mode
         }
         reg_val &= ~(
-                (RTC_IO_TOUCH_PAD1_FUN_SEL_V << rtc_gpio_desc[pin].func)
-                |rtc_gpio_desc[pin].ie
-                |rtc_gpio_desc[pin].pullup
-                |rtc_gpio_desc[pin].pulldown);
+            (RTC_IO_TOUCH_PAD1_FUN_SEL_V << rtc_gpio_desc[pin].func) | rtc_gpio_desc[pin].ie | rtc_gpio_desc[pin].pullup | rtc_gpio_desc[pin].pulldown);
         ESP_REG(RTC_GPIO_ENABLE_W1TC_REG) = (1 << (rtc_gpio_desc[pin].rtc_num + RTC_GPIO_ENABLE_W1TC_S));
         ESP_REG(rtc_reg) = reg_val | rtc_gpio_desc[pin].mux;
         //unlock rtc
@@ -110,14 +113,20 @@ extern void IRAM_ATTR __pinMode(uint8_t pin, uint8_t mode)
     }
 
     //RTC pins PULL settings
-    if(rtc_reg) {
+    if (rtc_reg)
+    {
         //lock rtc
         ESP_REG(rtc_reg) = ESP_REG(rtc_reg) & ~(rtc_gpio_desc[pin].mux);
-        if(mode & PULLUP) {
+        if (mode & PULLUP)
+        {
             ESP_REG(rtc_reg) = (ESP_REG(rtc_reg) | rtc_gpio_desc[pin].pullup) & ~(rtc_gpio_desc[pin].pulldown);
-        } else if(mode & PULLDOWN) {
+        }
+        else if (mode & PULLDOWN)
+        {
             ESP_REG(rtc_reg) = (ESP_REG(rtc_reg) | rtc_gpio_desc[pin].pulldown) & ~(rtc_gpio_desc[pin].pullup);
-        } else {
+        }
+        else
+        {
             ESP_REG(rtc_reg) = ESP_REG(rtc_reg) & ~(rtc_gpio_desc[pin].pullup | rtc_gpio_desc[pin].pulldown);
         }
         //unlock rtc
@@ -126,43 +135,63 @@ extern void IRAM_ATTR __pinMode(uint8_t pin, uint8_t mode)
     uint32_t pinFunction = 0, pinControl = 0;
 
     //lock gpio
-    if(mode & INPUT) {
-        if(pin < 32) {
+    if (mode & INPUT)
+    {
+        if (pin < 32)
+        {
             GPIO.enable_w1tc = ((uint32_t)1 << pin);
-        } else {
+        }
+        else
+        {
             GPIO.enable1_w1tc.val = ((uint32_t)1 << (pin - 32));
         }
-    } else if(mode & OUTPUT) {
-        if(pin > 33){
+    }
+    else if (mode & OUTPUT)
+    {
+        if (pin > 33)
+        {
             //unlock gpio
-            return;//pins above 33 can be only inputs
-        } else if(pin < 32) {
+            return; //pins above 33 can be only inputs
+        }
+        else if (pin < 32)
+        {
             GPIO.enable_w1ts = ((uint32_t)1 << pin);
-        } else {
+        }
+        else
+        {
             GPIO.enable1_w1ts.val = ((uint32_t)1 << (pin - 32));
         }
     }
 
-    if(mode & PULLUP) {
+    if (mode & PULLUP)
+    {
         pinFunction |= FUN_PU;
-    } else if(mode & PULLDOWN) {
+    }
+    else if (mode & PULLDOWN)
+    {
         pinFunction |= FUN_PD;
     }
 
-    pinFunction |= ((uint32_t)2 << FUN_DRV_S);//what are the drivers?
-    pinFunction |= FUN_IE;//input enable but required for output as well?
+    pinFunction |= ((uint32_t)2 << FUN_DRV_S); //what are the drivers?
+    pinFunction |= FUN_IE;                     //input enable but required for output as well?
 
-    if(mode & (INPUT | OUTPUT)) {
+    if (mode & (INPUT | OUTPUT))
+    {
         pinFunction |= ((uint32_t)2 << MCU_SEL_S);
-    } else if(mode == SPECIAL) {
-        pinFunction |= ((uint32_t)(((pin)==1||(pin)==3)?0:1) << MCU_SEL_S);
-    } else {
+    }
+    else if (mode == SPECIAL)
+    {
+        pinFunction |= ((uint32_t)(((pin) == 1 || (pin) == 3) ? 0 : 1) << MCU_SEL_S);
+    }
+    else
+    {
         pinFunction |= ((uint32_t)(mode >> 5) << MCU_SEL_S);
     }
 
     ESP_REG(DR_REG_IO_MUX_BASE + esp32_gpioMux[pin].reg) = pinFunction;
 
-    if(mode & OPEN_DRAIN) {
+    if (mode & OPEN_DRAIN)
+    {
         pinControl = (1 << GPIO_PIN0_PAD_DRIVER_S);
     }
 
@@ -172,16 +201,25 @@ extern void IRAM_ATTR __pinMode(uint8_t pin, uint8_t mode)
 
 extern void IRAM_ATTR __digitalWrite(uint8_t pin, uint8_t val)
 {
-    if(val) {
-        if(pin < 32) {
+    if (val)
+    {
+        if (pin < 32)
+        {
             GPIO.out_w1ts = ((uint32_t)1 << pin);
-        } else if(pin < 34) {
+        }
+        else if (pin < 34)
+        {
             GPIO.out1_w1ts.val = ((uint32_t)1 << (pin - 32));
         }
-    } else {
-        if(pin < 32) {
+    }
+    else
+    {
+        if (pin < 32)
+        {
             GPIO.out_w1tc = ((uint32_t)1 << pin);
-        } else if(pin < 34) {
+        }
+        else if (pin < 34)
+        {
             GPIO.out1_w1tc.val = ((uint32_t)1 << (pin - 32));
         }
     }
@@ -189,9 +227,12 @@ extern void IRAM_ATTR __digitalWrite(uint8_t pin, uint8_t val)
 
 extern int IRAM_ATTR __digitalRead(uint8_t pin)
 {
-    if(pin < 32) {
+    if (pin < 32)
+    {
         return (GPIO.in >> pin) & 0x1;
-    } else if(pin < 40) {
+    }
+    else if (pin < 40)
+    {
         return (GPIO.in1.val >> (pin - 32)) & 0x1;
     }
     return 0;
@@ -201,51 +242,66 @@ static intr_handle_t gpio_intr_handle = NULL;
 
 static void IRAM_ATTR __onPinInterrupt()
 {
-    uint32_t gpio_intr_status_l=0;
-    uint32_t gpio_intr_status_h=0;
+    uint32_t gpio_intr_status_l = 0;
+    uint32_t gpio_intr_status_h = 0;
 
     gpio_intr_status_l = GPIO.status;
     gpio_intr_status_h = GPIO.status1.val;
-    GPIO.status_w1tc = gpio_intr_status_l;//Clear intr for gpio0-gpio31
-    GPIO.status1_w1tc.val = gpio_intr_status_h;//Clear intr for gpio32-39
+    GPIO.status_w1tc = gpio_intr_status_l;      //Clear intr for gpio0-gpio31
+    GPIO.status1_w1tc.val = gpio_intr_status_h; //Clear intr for gpio32-39
 
-    uint8_t pin=0;
-    if(gpio_intr_status_l) {
-        do {
-            if(gpio_intr_status_l & ((uint32_t)1 << pin)) {
-                if(__pinInterruptHandlers[pin].fn) {
-                    if(__pinInterruptHandlers[pin].arg){
+    uint8_t pin = 0;
+    if (gpio_intr_status_l)
+    {
+        do
+        {
+            if (gpio_intr_status_l & ((uint32_t)1 << pin))
+            {
+                if (__pinInterruptHandlers[pin].fn)
+                {
+                    if (__pinInterruptHandlers[pin].arg)
+                    {
                         ((voidFuncPtrArg)__pinInterruptHandlers[pin].fn)(__pinInterruptHandlers[pin].arg);
-                    } else {
+                    }
+                    else
+                    {
                         __pinInterruptHandlers[pin].fn();
                     }
                 }
             }
-        } while(++pin<32);
+        } while (++pin < 32);
     }
-    if(gpio_intr_status_h) {
-        pin=32;
-        do {
-            if(gpio_intr_status_h & ((uint32_t)1 << (pin - 32))) {
-                if(__pinInterruptHandlers[pin].fn) {
-                    if(__pinInterruptHandlers[pin].arg){
+    if (gpio_intr_status_h)
+    {
+        pin = 32;
+        do
+        {
+            if (gpio_intr_status_h & ((uint32_t)1 << (pin - 32)))
+            {
+                if (__pinInterruptHandlers[pin].fn)
+                {
+                    if (__pinInterruptHandlers[pin].arg)
+                    {
                         ((voidFuncPtrArg)__pinInterruptHandlers[pin].fn)(__pinInterruptHandlers[pin].arg);
-                    } else {
+                    }
+                    else
+                    {
                         __pinInterruptHandlers[pin].fn();
                     }
                 }
             }
-        } while(++pin<GPIO_PIN_COUNT);
+        } while (++pin < GPIO_PIN_COUNT);
     }
 }
 
-extern void cleanupFunctional(void* arg);
+extern void cleanupFunctional(void *arg);
 
-extern void __attachInterruptFunctionalArg(uint8_t pin, voidFuncPtrArg userFunc, void * arg, int intr_type, bool functional)
+extern void __attachInterruptFunctionalArg(uint8_t pin, voidFuncPtrArg userFunc, void *arg, int intr_type, bool functional)
 {
     static bool interrupt_initialized = false;
 
-    if(!interrupt_initialized) {
+    if (!interrupt_initialized)
+    {
         interrupt_initialized = true;
         esp_intr_alloc(ETS_GPIO_INTR_SOURCE, (int)ESP_INTR_FLAG_IRAM, __onPinInterrupt, NULL, &gpio_intr_handle);
     }
@@ -253,28 +309,32 @@ extern void __attachInterruptFunctionalArg(uint8_t pin, voidFuncPtrArg userFunc,
     // if new attach without detach remove old info
     if (__pinInterruptHandlers[pin].functional && __pinInterruptHandlers[pin].arg)
     {
-    	cleanupFunctional(__pinInterruptHandlers[pin].arg);
+        cleanupFunctional(__pinInterruptHandlers[pin].arg);
     }
     __pinInterruptHandlers[pin].fn = (voidFuncPtr)userFunc;
     __pinInterruptHandlers[pin].arg = arg;
     __pinInterruptHandlers[pin].functional = functional;
 
     esp_intr_disable(gpio_intr_handle);
-    if(esp_intr_get_cpu(gpio_intr_handle)) { //APP_CPU
+    if (esp_intr_get_cpu(gpio_intr_handle))
+    { //APP_CPU
         GPIO.pin[pin].int_ena = 1;
-    } else { //PRO_CPU
+    }
+    else
+    { //PRO_CPU
         GPIO.pin[pin].int_ena = 4;
     }
     GPIO.pin[pin].int_type = intr_type;
     esp_intr_enable(gpio_intr_handle);
 }
 
-extern void __attachInterruptArg(uint8_t pin, voidFuncPtrArg userFunc, void * arg, int intr_type)
+extern void __attachInterruptArg(uint8_t pin, voidFuncPtrArg userFunc, void *arg, int intr_type)
 {
-	__attachInterruptFunctionalArg(pin, userFunc, arg, intr_type, false);
+    __attachInterruptFunctionalArg(pin, userFunc, arg, intr_type, false);
 }
 
-extern void __attachInterrupt(uint8_t pin, voidFuncPtr userFunc, int intr_type) {
+extern void __attachInterrupt(uint8_t pin, voidFuncPtr userFunc, int intr_type)
+{
     __attachInterruptFunctionalArg(pin, (voidFuncPtrArg)userFunc, NULL, intr_type, false);
 }
 
@@ -283,7 +343,7 @@ extern void __detachInterrupt(uint8_t pin)
     esp_intr_disable(gpio_intr_handle);
     if (__pinInterruptHandlers[pin].functional && __pinInterruptHandlers[pin].arg)
     {
-    	cleanupFunctional(__pinInterruptHandlers[pin].arg);
+        cleanupFunctional(__pinInterruptHandlers[pin].arg);
     }
     __pinInterruptHandlers[pin].fn = NULL;
     __pinInterruptHandlers[pin].arg = NULL;
@@ -294,11 +354,9 @@ extern void __detachInterrupt(uint8_t pin)
     esp_intr_enable(gpio_intr_handle);
 }
 
-
-extern void pinMode(uint8_t pin, uint8_t mode) __attribute__ ((weak, alias("__pinMode")));
-extern void digitalWrite(uint8_t pin, uint8_t val) __attribute__ ((weak, alias("__digitalWrite")));
-extern int digitalRead(uint8_t pin) __attribute__ ((weak, alias("__digitalRead")));
-extern void attachInterrupt(uint8_t pin, voidFuncPtr handler, int mode) __attribute__ ((weak, alias("__attachInterrupt")));
-extern void attachInterruptArg(uint8_t pin, voidFuncPtrArg handler, void * arg, int mode) __attribute__ ((weak, alias("__attachInterruptArg")));
-extern void detachInterrupt(uint8_t pin) __attribute__ ((weak, alias("__detachInterrupt")));
-
+extern void pinMode(uint8_t pin, uint8_t mode) __attribute__((weak, alias("__pinMode")));
+extern void digitalWrite(uint8_t pin, uint8_t val) __attribute__((weak, alias("__digitalWrite")));
+extern int digitalRead(uint8_t pin) __attribute__((weak, alias("__digitalRead")));
+extern void attachInterrupt(uint8_t pin, voidFuncPtr handler, int mode) __attribute__((weak, alias("__attachInterrupt")));
+extern void attachInterruptArg(uint8_t pin, voidFuncPtrArg handler, void *arg, int mode) __attribute__((weak, alias("__attachInterruptArg")));
+extern void detachInterrupt(uint8_t pin) __attribute__((weak, alias("__detachInterrupt")));
