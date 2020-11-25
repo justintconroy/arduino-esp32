@@ -4,9 +4,9 @@
  *  Created on: Feb 24, 2017
  *      Author: kolban
  */
-#include <freertos/FreeRTOS.h>   // Include the base FreeRTOS definitions
-#include <freertos/task.h>       // Include the task definitions
-#include <freertos/semphr.h>     // Include the semaphore definitions
+#include <freertos/FreeRTOS.h> // Include the base FreeRTOS definitions
+#include <freertos/task.h>		 // Include the task definitions
+#include <freertos/semphr.h>	 // Include the semaphore definitions
 #include <string>
 #include <sstream>
 #include <iomanip>
@@ -18,10 +18,10 @@
  * Sleep for the specified number of milliseconds.
  * @param[in] ms The period in milliseconds for which to sleep.
  */
-void FreeRTOS::sleep(uint32_t ms) {
+void FreeRTOS::sleep(uint32_t ms)
+{
 	::vTaskDelay(ms / portTICK_PERIOD_MS);
 } // sleep
-
 
 /**
  * Start a new task.
@@ -30,28 +30,28 @@ void FreeRTOS::sleep(uint32_t ms) {
  * @param[in] param An optional parameter to be passed to the started task.
  * @param[in] stackSize An optional paremeter supplying the size of the stack in which to run the task.
  */
-void FreeRTOS::startTask(void task(void*), std::string taskName, void* param, uint32_t stackSize) {
+void FreeRTOS::startTask(void task(void *), std::string taskName, void *param, uint32_t stackSize)
+{
 	::xTaskCreate(task, taskName.data(), stackSize, param, 5, NULL);
 } // startTask
-
 
 /**
  * Delete the task.
  * @param[in] pTask An optional handle to the task to be deleted.  If not supplied the calling task will be deleted.
  */
-void FreeRTOS::deleteTask(TaskHandle_t pTask) {
+void FreeRTOS::deleteTask(TaskHandle_t pTask)
+{
 	::vTaskDelete(pTask);
 } // deleteTask
-
 
 /**
  * Get the time in milliseconds since the %FreeRTOS scheduler started.
  * @return The time in milliseconds since the %FreeRTOS scheduler started.
  */
-uint32_t FreeRTOS::getTimeSinceStart() {
-	return (uint32_t) (xTaskGetTickCount() * portTICK_PERIOD_MS);
+uint32_t FreeRTOS::getTimeSinceStart()
+{
+	return (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
 } // getTimeSinceStart
-
 
 /**
  * @brief Wait for a semaphore to be released by trying to take it and
@@ -59,18 +59,25 @@ uint32_t FreeRTOS::getTimeSinceStart() {
  * @param [in] owner A debug tag.
  * @return The value associated with the semaphore.
  */
-uint32_t FreeRTOS::Semaphore::wait(std::string owner) {
+uint32_t FreeRTOS::Semaphore::wait(std::string owner)
+{
 	log_v(">> wait: Semaphore waiting: %s for %s", toString().c_str(), owner.c_str());
-	
-	if (m_usePthreads) {
+
+	if (m_usePthreads)
+	{
 		pthread_mutex_lock(&m_pthread_mutex);
-	} else {
+	}
+	else
+	{
 		xSemaphoreTake(m_semaphore, portMAX_DELAY);
 	}
 
-	if (m_usePthreads) {
+	if (m_usePthreads)
+	{
 		pthread_mutex_unlock(&m_pthread_mutex);
-	} else {
+	}
+	else
+	{
 		xSemaphoreGive(m_semaphore);
 	}
 
@@ -85,24 +92,32 @@ uint32_t FreeRTOS::Semaphore::wait(std::string owner) {
  * @param [in] timeoutMs timeout to wait in ms.
  * @return True if we took the semaphore within timeframe.
  */
-bool FreeRTOS::Semaphore::timedWait(std::string owner, uint32_t timeoutMs) {
+bool FreeRTOS::Semaphore::timedWait(std::string owner, uint32_t timeoutMs)
+{
 	log_v(">> wait: Semaphore waiting: %s for %s", toString().c_str(), owner.c_str());
 
-	if (m_usePthreads && timeoutMs != portMAX_DELAY) {
-		assert(false);  // We apparently don't have a timed wait for pthreads.
+	if (m_usePthreads && timeoutMs != portMAX_DELAY)
+	{
+		assert(false); // We apparently don't have a timed wait for pthreads.
 	}
 
 	auto ret = pdTRUE;
 
-	if (m_usePthreads) {
+	if (m_usePthreads)
+	{
 		pthread_mutex_lock(&m_pthread_mutex);
-	} else {
+	}
+	else
+	{
 		ret = xSemaphoreTake(m_semaphore, timeoutMs);
 	}
 
-	if (m_usePthreads) {
+	if (m_usePthreads)
+	{
 		pthread_mutex_unlock(&m_pthread_mutex);
-	} else {
+	}
+	else
+	{
 		xSemaphoreGive(m_semaphore);
 	}
 
@@ -110,74 +125,85 @@ bool FreeRTOS::Semaphore::timedWait(std::string owner, uint32_t timeoutMs) {
 	return ret;
 } // wait
 
-
-FreeRTOS::Semaphore::Semaphore(std::string name) {
-	m_usePthreads = false;   	// Are we using pThreads or FreeRTOS?
-	if (m_usePthreads) {
+FreeRTOS::Semaphore::Semaphore(std::string name)
+{
+	m_usePthreads = false; // Are we using pThreads or FreeRTOS?
+	if (m_usePthreads)
+	{
 		pthread_mutex_init(&m_pthread_mutex, nullptr);
-	} else {
+	}
+	else
+	{
 		m_semaphore = xSemaphoreCreateBinary();
 		xSemaphoreGive(m_semaphore);
 	}
 
-	m_name      = name;
-	m_owner     = std::string("<N/A>");
-	m_value     = 0;
+	m_name = name;
+	m_owner = std::string("<N/A>");
+	m_value = 0;
 }
 
-
-FreeRTOS::Semaphore::~Semaphore() {
-	if (m_usePthreads) {
+FreeRTOS::Semaphore::~Semaphore()
+{
+	if (m_usePthreads)
+	{
 		pthread_mutex_destroy(&m_pthread_mutex);
-	} else {
+	}
+	else
+	{
 		vSemaphoreDelete(m_semaphore);
 	}
 }
-
 
 /**
  * @brief Give a semaphore.
  * The Semaphore is given.
  */
-void FreeRTOS::Semaphore::give() {
+void FreeRTOS::Semaphore::give()
+{
 	log_v("Semaphore giving: %s", toString().c_str());
 	m_owner = std::string("<N/A>");
-	
-	if (m_usePthreads) {
+
+	if (m_usePthreads)
+	{
 		pthread_mutex_unlock(&m_pthread_mutex);
-	} else {
+	}
+	else
+	{
 		xSemaphoreGive(m_semaphore);
 	}
-// #ifdef ARDUINO_ARCH_ESP32
-// 	FreeRTOS::sleep(10);
-// #endif
+	// #ifdef ARDUINO_ARCH_ESP32
+	// 	FreeRTOS::sleep(10);
+	// #endif
 
 } // Semaphore::give
-
 
 /**
  * @brief Give a semaphore.
  * The Semaphore is given with an associated value.
  * @param [in] value The value to associate with the semaphore.
  */
-void FreeRTOS::Semaphore::give(uint32_t value) {
+void FreeRTOS::Semaphore::give(uint32_t value)
+{
 	m_value = value;
 	give();
 } // give
 
-
 /**
  * @brief Give a semaphore from an ISR.
  */
-void FreeRTOS::Semaphore::giveFromISR() {
+void FreeRTOS::Semaphore::giveFromISR()
+{
 	BaseType_t higherPriorityTaskWoken;
-	if (m_usePthreads) {
+	if (m_usePthreads)
+	{
 		assert(false);
-	} else {
+	}
+	else
+	{
 		xSemaphoreGiveFromISR(m_semaphore, &higherPriorityTaskWoken);
 	}
 } // giveFromISR
-
 
 /**
  * @brief Take a semaphore.
@@ -185,23 +211,29 @@ void FreeRTOS::Semaphore::giveFromISR() {
  * @param [in] owner The new owner (for debugging)
  * @return True if we took the semaphore.
  */
-bool FreeRTOS::Semaphore::take(std::string owner) {
+bool FreeRTOS::Semaphore::take(std::string owner)
+{
 	log_d("Semaphore taking: %s for %s", toString().c_str(), owner.c_str());
 	bool rc = false;
-	if (m_usePthreads) {
+	if (m_usePthreads)
+	{
 		pthread_mutex_lock(&m_pthread_mutex);
-	} else {
+	}
+	else
+	{
 		rc = ::xSemaphoreTake(m_semaphore, portMAX_DELAY) == pdTRUE;
 	}
 	m_owner = owner;
-	if (rc) {
+	if (rc)
+	{
 		log_d("Semaphore taken:  %s", toString().c_str());
-	} else {
+	}
+	else
+	{
 		log_e("Semaphore NOT taken:  %s", toString().c_str());
 	}
 	return rc;
 } // Semaphore::take
-
 
 /**
  * @brief Take a semaphore.
@@ -210,30 +242,36 @@ bool FreeRTOS::Semaphore::take(std::string owner) {
  * @param [in] owner The new owner (for debugging)
  * @return True if we took the semaphore.
  */
-bool FreeRTOS::Semaphore::take(uint32_t timeoutMs, std::string owner) {
+bool FreeRTOS::Semaphore::take(uint32_t timeoutMs, std::string owner)
+{
 	log_v("Semaphore taking: %s for %s", toString().c_str(), owner.c_str());
 	bool rc = false;
-	if (m_usePthreads) {
-		assert(false);  // We apparently don't have a timed wait for pthreads.
-	} else {
+	if (m_usePthreads)
+	{
+		assert(false); // We apparently don't have a timed wait for pthreads.
+	}
+	else
+	{
 		rc = ::xSemaphoreTake(m_semaphore, timeoutMs / portTICK_PERIOD_MS) == pdTRUE;
 	}
 	m_owner = owner;
-	if (rc) {
+	if (rc)
+	{
 		log_v("Semaphore taken:  %s", toString().c_str());
-	} else {
+	}
+	else
+	{
 		log_e("Semaphore NOT taken:  %s", toString().c_str());
 	}
 	return rc;
 } // Semaphore::take
 
-
-
 /**
  * @brief Create a string representation of the semaphore.
  * @return A string representation of the semaphore.
  */
-std::string FreeRTOS::Semaphore::toString() {
+std::string FreeRTOS::Semaphore::toString()
+{
 	char hex[9];
 	std::string res = "name: " + m_name + " (0x";
 	snprintf(hex, sizeof(hex), "%08x", (uint32_t)m_semaphore);
@@ -242,30 +280,29 @@ std::string FreeRTOS::Semaphore::toString() {
 	return res;
 } // toString
 
-
 /**
  * @brief Set the name of the semaphore.
  * @param [in] name The name of the semaphore.
  */
-void FreeRTOS::Semaphore::setName(std::string name) {
+void FreeRTOS::Semaphore::setName(std::string name)
+{
 	m_name = name;
 } // setName
-
 
 /**
  * @brief Create a ring buffer.
  * @param [in] length The amount of storage to allocate for the ring buffer.
  * @param [in] type The type of buffer.  One of RINGBUF_TYPE_NOSPLIT, RINGBUF_TYPE_ALLOWSPLIT, RINGBUF_TYPE_BYTEBUF.
  */
-Ringbuffer::Ringbuffer(size_t length, ringbuf_type_t type) {
+Ringbuffer::Ringbuffer(size_t length, RingbufferType_t type)
+{
 	m_handle = ::xRingbufferCreate(length, type);
 } // Ringbuffer
 
-
-Ringbuffer::~Ringbuffer() {
+Ringbuffer::~Ringbuffer()
+{
 	::vRingbufferDelete(m_handle);
 } // ~Ringbuffer
-
 
 /**
  * @brief Receive data from the buffer.
@@ -273,19 +310,19 @@ Ringbuffer::~Ringbuffer() {
  * @param [in] wait How long to wait.
  * @return A pointer to the storage retrieved.
  */
-void* Ringbuffer::receive(size_t* size, TickType_t wait) {
+void *Ringbuffer::receive(size_t *size, TickType_t wait)
+{
 	return ::xRingbufferReceive(m_handle, size, wait);
 } // receive
-
 
 /**
  * @brief Return an item.
  * @param [in] item The item to be returned/released.
  */
-void Ringbuffer::returnItem(void* item) {
+void Ringbuffer::returnItem(void *item)
+{
 	::vRingbufferReturnItem(m_handle, item);
 } // returnItem
-
 
 /**
  * @brief Send data to the buffer.
@@ -294,8 +331,7 @@ void Ringbuffer::returnItem(void* item) {
  * @param [in] wait How long to wait before giving up.  The default is to wait indefinitely.
  * @return
  */
-bool Ringbuffer::send(void* data, size_t length, TickType_t wait) {
+bool Ringbuffer::send(void *data, size_t length, TickType_t wait)
+{
 	return ::xRingbufferSend(m_handle, data, length, wait) == pdTRUE;
 } // send
-
-
